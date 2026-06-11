@@ -1,0 +1,11 @@
+[
+  {
+    "channel": "stable",
+    "version": "2.1.153",
+    "published_to_npm_at": "2026-05-27T21:46:58.252Z",
+    "first_observed_utc": "2026-06-11T03:43:29.538Z",
+    "source": "npm-registry",
+    "changelog_url": "https://github.com/anthropics/claude-code/releases/tag/v2.1.153",
+    "notes": null
+  }
+]

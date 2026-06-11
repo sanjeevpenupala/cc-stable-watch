@@ -1,0 +1,41 @@
+name: smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Playwright (chromium only)
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save playwright@^1.47 >/dev/null
+          npx playwright install --with-deps chromium
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site/data
+          cp -r public/. _site/
+          cp data/stable.json data/latest.json _site/data/
+
+      - name: Serve site
+        run: |
+          npx --yes http-server _site -p 8000 -s &
+          ready=0
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:8000/ >/dev/null && ready=1 && break || sleep 1
+          done
+          [ "$ready" = "1" ] || { echo "http-server did not start"; exit 1; }
+
+      - name: Run smoke
+        env:
+          SITE_URL: http://localhost:8000
+        run: node tests/smoke.mjs
