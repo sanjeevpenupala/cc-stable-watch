@@ -111,9 +111,13 @@ function renderHero(stable, latest) {
 
   const anchor = bumpAnchor(current);
   const days = Math.max(0, Math.floor(daysBetween(anchor.iso, new Date().toISOString())));
-  const prefix = anchor.approx ? "first seen" : "bumped";
-  els.heroBumped.textContent =
-    days === 0 ? `${prefix} today` : `${prefix} ${days} day${days === 1 ? "" : "s"} ago`;
+  if (anchor.approx) {
+    els.heroBumped.textContent =
+      days === 0 ? "tracking since today" : `tracking since ${days} day${days === 1 ? "" : "s"} ago`;
+  } else {
+    els.heroBumped.textContent =
+      days === 0 ? "bumped today" : `bumped ${days} day${days === 1 ? "" : "s"} ago`;
+  }
 
   const stats = computeGapStats(stable);
   if (!stats) {
@@ -170,6 +174,11 @@ function escapeAttr(s) {
 }
 
 function renderHistory(stable) {
+  if (stable.length === 0) {
+    els.historyTbody.innerHTML =
+      '<tr class="empty-row"><td colspan="4">No promotions recorded yet. Check back after the first poll.</td></tr>';
+    return;
+  }
   const rows = [];
   for (let i = stable.length - 1; i >= 0; i--) {
     const entry = stable[i];

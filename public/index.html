@@ -21,6 +21,27 @@
       content="Unofficial community tracker for the Claude Code CLI stable release channel."
     />
     <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23d97757'/%3E%3Ctext x='16' y='22' font-family='-apple-system,Segoe UI,sans-serif' font-size='18' font-weight='700' text-anchor='middle' fill='%23ffffff'%3EC%3C/text%3E%3C/svg%3E"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="CC Stable Watch" />
+    <meta
+      property="og:description"
+      content="Unofficial community tracker for the Claude Code CLI stable release channel."
+    />
+    <meta
+      property="og:url"
+      content="https://sanjeevpenupala.github.io/cc-stable-watch/"
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="CC Stable Watch" />
+    <meta
+      name="twitter:description"
+      content="Unofficial community tracker for the Claude Code CLI stable release channel."
+    />
+    <link
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
@@ -80,17 +101,19 @@
 
       <section class="history-section" aria-labelledby="history-heading">
         <h2 id="history-heading">Stable promotions</h2>
-        <table id="history-table">
-          <thead>
-            <tr>
-              <th scope="col">Version</th>
-              <th scope="col">Promoted</th>
-              <th scope="col">Lifespan</th>
-              <th scope="col">Changelog</th>
-            </tr>
-          </thead>
-          <tbody id="history-tbody"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table id="history-table">
+            <thead>
+              <tr>
+                <th scope="col">Version</th>
+                <th scope="col">Promoted</th>
+                <th scope="col">Lifespan</th>
+                <th scope="col">Changelog</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="latest-section" aria-labelledby="latest-heading">
