@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        width: 1200px;
+        height: 630px;
+        background: #faf9f5;
+        color: #141413;
+        font-family: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        padding: 72px 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-weight: 700;
+        font-size: 28px;
+        letter-spacing: -0.01em;
+      }
+      .mark {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: #d97757;
+        color: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 24px;
+      }
+      .display {
+        font-weight: 700;
+        font-size: 110px;
+        line-height: 0.95;
+        letter-spacing: -0.035em;
+        color: #141413;
+        margin: 0;
+        max-width: 1040px;
+      }
+      .display em {
+        font-style: normal;
+        color: #d97757;
+      }
+      .rule {
+        width: 88px;
+        height: 5px;
+        background: #d97757;
+        border-radius: 999px;
+        margin: 28px 0 24px;
+      }
+      .subhead {
+        font-weight: 400;
+        font-size: 28px;
+        color: #6b6962;
+        max-width: 880px;
+        line-height: 1.4;
+      }
+      .bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        font-size: 22px;
+        color: #6b6962;
+      }
+      .url {
+        font-weight: 600;
+        color: #141413;
+        font-variant-numeric: tabular-nums;
+      }
+      .label {
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 16px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="top">
+      <span class="mark">C</span>
+      <span>CC Stable Watch</span>
+    </div>
+
+    <div>
+      <h1 class="display">
+        Track Claude Code's<br /><em>stable</em> channel.
+      </h1>
+      <div class="rule"></div>
+      <p class="subhead">
+        Unofficial community tracker. Daily polls of the npm registry,
+        append-only history, no predictions.
+      </p>
+    </div>
+
+    <div class="bottom">
+      <span class="label">Live tracker</span>
+      <span class="url">sanjeevpenupala.github.io/cc-stable-watch</span>
+    </div>
+  </body>
+</html>
