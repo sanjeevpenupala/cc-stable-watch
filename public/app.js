@@ -1,0 +1,249 @@
+const DATA_STABLE = "data/stable.json";
+const DATA_LATEST = "data/latest.json";
+
+const els = {
+  heroVersion: document.getElementById("hero-version"),
+  heroBumped: document.getElementById("hero-bumped"),
+  heroTypicalGap: document.getElementById("hero-typical-gap"),
+  historyTbody: document.getElementById("history-tbody"),
+  latestVersion: document.getElementById("latest-version"),
+  latestCadence: document.getElementById("latest-cadence"),
+  lagChart: document.getElementById("lag-chart"),
+  errorState: document.getElementById("error-state"),
+  retryButton: document.getElementById("retry-button"),
+  themeToggle: document.getElementById("theme-toggle"),
+};
+
+let chartInstance = null;
+
+async function fetchJson(path) {
+  const res = await fetch(path, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error(`${path} not array`);
+  return data;
+}
+
+function showError() {
+  els.errorState.hidden = false;
+}
+
+function hideError() {
+  els.errorState.hidden = true;
+}
+
+function daysBetween(aIso, bIso) {
+  const ms = new Date(bIso).getTime() - new Date(aIso).getTime();
+  return ms / 86400000;
+}
+
+function percentile(sortedNums, p) {
+  if (sortedNums.length === 0) return null;
+  const i = (sortedNums.length - 1) * p;
+  const lo = Math.floor(i);
+  const hi = Math.ceil(i);
+  if (lo === hi) return sortedNums[lo];
+  return sortedNums[lo] + (sortedNums[hi] - sortedNums[lo]) * (i - lo);
+}
+
+function computeGapStats(stable) {
+  if (stable.length < 2) return null;
+  const gaps = [];
+  for (let i = 1; i < stable.length; i++) {
+    gaps.push(daysBetween(stable[i - 1].first_observed_utc, stable[i].first_observed_utc));
+  }
+  const sorted = [...gaps].sort((a, b) => a - b);
+  return {
+    min: Math.round(percentile(sorted, 0.25)),
+    max: Math.round(percentile(sorted, 0.75)),
+    median: Math.round(percentile(sorted, 0.5)),
+    count: gaps.length,
+  };
+}
+
+function renderHero(stable) {
+  if (stable.length === 0) {
+    els.heroVersion.textContent = "—";
+    els.heroBumped.textContent = "No data yet";
+    els.heroTypicalGap.textContent = "";
+    return;
+  }
+  const current = stable[stable.length - 1];
+  els.heroVersion.textContent = current.version;
+
+  const days = Math.floor(daysBetween(current.first_observed_utc, new Date().toISOString()));
+  els.heroBumped.textContent =
+    days === 0 ? "bumped today" : `bumped ${days} day${days === 1 ? "" : "s"} ago`;
+
+  const stats = computeGapStats(stable);
+  if (!stats) {
+    els.heroTypicalGap.textContent = "not enough history yet";
+  } else {
+    els.heroTypicalGap.textContent = `typical gap: ${stats.min}d–${stats.max}d (median ${stats.median}d, n=${stats.count})`;
+  }
+}
+
+function fmtDateUTC(iso) {
+  const d = new Date(iso);
+  return d.toISOString().slice(0, 10);
+}
+
+function lifespanDays(thisIso, nextIso) {
+  return Math.max(0, Math.round(daysBetween(thisIso, nextIso)));
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[c]);
+}
+
+function escapeAttr(s) {
+  return escapeHtml(s);
+}
+
+function renderHistory(stable) {
+  const rows = [];
+  for (let i = stable.length - 1; i >= 0; i--) {
+    const entry = stable[i];
+    const next = stable[i + 1];
+    const isCurrent = i === stable.length - 1;
+    const lifespan = isCurrent
+      ? "current"
+      : `${lifespanDays(entry.first_observed_utc, next.first_observed_utc)} d`;
+    rows.push(
+      `<tr class="${isCurrent ? "current" : ""}">` +
+        `<td>${escapeHtml(entry.version)}</td>` +
+        `<td>${fmtDateUTC(entry.first_observed_utc)}</td>` +
+        `<td>${lifespan}</td>` +
+        `<td><a href="${escapeAttr(entry.changelog_url)}" rel="noopener noreferrer" target="_blank">view</a></td>` +
+        `</tr>`,
+    );
+  }
+  els.historyTbody.innerHTML = rows.join("");
+}
+
+function renderLatest(latest) {
+  if (latest.length === 0) {
+    els.latestVersion.textContent = "—";
+    els.latestCadence.textContent = "No data yet.";
+    return;
+  }
+  const current = latest[latest.length - 1];
+  els.latestVersion.textContent = current.version;
+
+  if (latest.length < 2) {
+    els.latestCadence.textContent = "Cadence will appear once more data is collected.";
+    return;
+  }
+  const gaps = [];
+  for (let i = 1; i < latest.length; i++) {
+    gaps.push(daysBetween(latest[i - 1].first_observed_utc, latest[i].first_observed_utc));
+  }
+  const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  const avgDays = avg < 1 ? avg.toFixed(1) : Math.round(avg).toString();
+  els.latestCadence.textContent = `Anthropic pushes a new build every ${avgDays} day${avgDays === "1" ? "" : "s"} on average.`;
+}
+
+function stableVersionAt(stable, iso) {
+  let active = null;
+  for (const entry of stable) {
+    if (new Date(entry.first_observed_utc) <= new Date(iso)) active = entry;
+    else break;
+  }
+  return active;
+}
+
+function buildLagSeries(stable, latest) {
+  const points = [];
+  for (const lat of latest) {
+    const sta = stableVersionAt(stable, lat.first_observed_utc);
+    if (!sta) continue;
+    const lagDays = daysBetween(sta.first_observed_utc, lat.first_observed_utc);
+    points.push({ x: lat.first_observed_utc, y: Math.max(0, Number(lagDays.toFixed(2))) });
+  }
+  return points;
+}
+
+function readCssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function renderChart(stable, latest) {
+  if (typeof Chart === "undefined") {
+    console.warn("Chart.js not loaded");
+    return;
+  }
+  const points = buildLagSeries(stable, latest);
+  if (chartInstance) chartInstance.destroy();
+
+  const accent = readCssVar("--color-accent") || "#d97757";
+  const muted = readCssVar("--color-fg-muted") || "#6b6962";
+  const line = readCssVar("--color-line") || "#e8e6dc";
+
+  chartInstance = new Chart(els.lagChart, {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          label: "Days latest is ahead of stable",
+          data: points,
+          borderColor: accent,
+          backgroundColor: accent + "33",
+          tension: 0.25,
+          pointRadius: points.length > 30 ? 0 : 3,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: "day" },
+          grid: { color: line },
+          ticks: { color: muted },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: line },
+          ticks: { color: muted, precision: 0 },
+          title: { display: true, text: "days", color: muted },
+        },
+      },
+    },
+  });
+}
+
+function render(state) {
+  renderHero(state.stable);
+  renderHistory(state.stable);
+  renderLatest(state.latest);
+  renderChart(state.stable, state.latest);
+}
+
+async function load() {
+  hideError();
+  try {
+    const [stable, latest] = await Promise.all([
+      fetchJson(DATA_STABLE),
+      fetchJson(DATA_LATEST),
+    ]);
+    render({ stable, latest });
+  } catch (err) {
+    console.error("load failed", err);
+    showError();
+  }
+}
+
+els.retryButton.addEventListener("click", load);
+
+load();
