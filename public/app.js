@@ -5,10 +5,13 @@ const els = {
   heroVersion: document.getElementById("hero-version"),
   heroBumped: document.getElementById("hero-bumped"),
   heroTypicalGap: document.getElementById("hero-typical-gap"),
+  heroLatest: document.getElementById("hero-latest"),
   historyTbody: document.getElementById("history-tbody"),
   latestVersion: document.getElementById("latest-version"),
   latestCadence: document.getElementById("latest-cadence"),
   lagChart: document.getElementById("lag-chart"),
+  chartWrap: document.getElementById("chart-wrap"),
+  chartPlaceholder: document.getElementById("chart-placeholder"),
   errorState: document.getElementById("error-state"),
   retryButton: document.getElementById("retry-button"),
   themeToggle: document.getElementById("theme-toggle"),
@@ -76,11 +79,31 @@ function bumpAnchor(entry) {
   return { iso: entry.first_observed_utc, approx: false };
 }
 
-function renderHero(stable) {
+// Parse "a.b.c" → [a, b, c] as integers. Returns null if not in that shape.
+function parseSemver(v) {
+  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(v || "");
+  if (!m) return null;
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+// Best-effort "patch versions between stable and latest" when major+minor
+// match (true for every release of this package so far). Falls back to null
+// when majors/minors differ — we can't honestly count across minors without
+// fetching the full version list from npm.
+function versionDistance(stableV, latestV) {
+  const a = parseSemver(stableV);
+  const b = parseSemver(latestV);
+  if (!a || !b) return null;
+  if (a[0] !== b[0] || a[1] !== b[1]) return null;
+  return b[2] - a[2];
+}
+
+function renderHero(stable, latest) {
   if (stable.length === 0) {
     els.heroVersion.textContent = "—";
     els.heroBumped.textContent = "No data yet";
     els.heroTypicalGap.textContent = "";
+    els.heroLatest.textContent = "";
     return;
   }
   const current = stable[stable.length - 1];
@@ -97,6 +120,20 @@ function renderHero(stable) {
     els.heroTypicalGap.textContent = "not enough history yet";
   } else {
     els.heroTypicalGap.textContent = `typical gap: ${stats.q1}d–${stats.q3}d (median ${stats.median}d, n=${stats.count})`;
+  }
+
+  const currentLatest = latest[latest.length - 1];
+  if (!currentLatest) {
+    els.heroLatest.textContent = "";
+    return;
+  }
+  const dist = versionDistance(current.version, currentLatest.version);
+  if (dist === null) {
+    els.heroLatest.textContent = `latest: ${currentLatest.version}`;
+  } else if (dist <= 0) {
+    els.heroLatest.textContent = `latest: ${currentLatest.version} (caught up)`;
+  } else {
+    els.heroLatest.textContent = `latest: ${currentLatest.version} (+${dist} version${dist === 1 ? "" : "s"} ahead)`;
   }
 }
 
@@ -210,6 +247,17 @@ function renderChart(stable, latest) {
   const points = buildLagSeries(stable, latest);
   if (chartInstance) chartInstance.destroy();
 
+  // A single observation can't show change-over-time. Hide chart and
+  // explain instead — one dot at lag=0 looks broken to first-time visitors.
+  if (points.length < 2) {
+    els.chartWrap.hidden = true;
+    els.chartPlaceholder.hidden = false;
+    chartInstance = null;
+    return;
+  }
+  els.chartWrap.hidden = false;
+  els.chartPlaceholder.hidden = true;
+
   const accent = readCssVar("--color-accent") || "#d97757";
   const muted = readCssVar("--color-fg-muted") || "#6b6962";
   const line = readCssVar("--color-line") || "#e8e6dc";
@@ -254,7 +302,7 @@ function renderChart(stable, latest) {
 
 function render(state) {
   lastState = state;
-  renderHero(state.stable);
+  renderHero(state.stable, state.latest);
   renderHistory(state.stable);
   renderLatest(state.latest);
   renderChart(state.stable, state.latest);

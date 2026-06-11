@@ -138,6 +138,31 @@ h2 {
   height: clamp(220px, 36vw, 320px);
 }
 
+.chart-placeholder {
+  background: var(--color-bg-elev);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius-md);
+  padding: 32px 20px;
+  color: var(--color-fg-muted);
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.chart-placeholder code {
+  font-family: var(--font-ui);
+  background: var(--color-line);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.hero-meta-secondary {
+  margin-top: 4px;
+  font-size: 15px;
+  opacity: 0.9;
+}
+
 #history-table {
   width: 100%;
   border-collapse: collapse;

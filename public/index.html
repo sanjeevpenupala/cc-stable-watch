@@ -57,6 +57,9 @@
           <span class="dot" aria-hidden="true">·</span>
           <span id="hero-typical-gap">—</span>
         </div>
+        <div class="hero-meta hero-meta-secondary">
+          <span id="hero-latest">—</span>
+        </div>
       </section>
 
       <section class="chart-section" aria-labelledby="chart-heading">
@@ -65,8 +68,13 @@
           Days the <code>latest</code> tag has been ahead of <code>stable</code>.
           Bigger gap → bump may be closer.
         </p>
-        <div class="chart-wrap">
+        <div class="chart-wrap" id="chart-wrap">
           <canvas id="lag-chart" aria-label="Latest-vs-stable lag over time"></canvas>
+        </div>
+        <div id="chart-placeholder" class="chart-placeholder" hidden>
+          Chart fills in as we observe new <code>latest</code> releases and
+          <code>stable</code> promotions over time. Needs at least two
+          observation points to be meaningful.
         </div>
       </section>
 
