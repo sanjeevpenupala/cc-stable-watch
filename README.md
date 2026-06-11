@@ -4,7 +4,7 @@ Unofficial community tracker for the Claude Code CLI **stable** release
 channel. Answers: what's the current stable version, when did it get promoted,
 and roughly how often does Anthropic promote a new one?
 
-Live site: _(set after first GitHub Pages deploy)_
+Live site: <https://sanjeevpenupala.github.io/cc-stable-watch/>
 
 ## How it works
 
