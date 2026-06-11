@@ -32,7 +32,7 @@ on the `stable` (or `latest`) `dist-tag` at a specific point in time.
    - `version`: the exact semver string
    - `first_observed_utc`: ISO-8601 UTC of the **evidence** (not the present)
    - `source`: `"manual"` for human contributions
-   - `notes`: a short string with the source link or description
+   - `notes`: required for manual backfills (the source link or short description); machine-written entries leave this as `null`
 
    Optional:
    - `published_to_npm_at`: ISO-8601 UTC from the npm registry

@@ -15,6 +15,7 @@ const els = {
 };
 
 let chartInstance = null;
+let lastState = null;
 
 async function fetchJson(path) {
   const res = await fetch(path, { cache: "no-store" });
@@ -54,8 +55,8 @@ function computeGapStats(stable) {
   }
   const sorted = [...gaps].sort((a, b) => a - b);
   return {
-    min: Math.round(percentile(sorted, 0.25)),
-    max: Math.round(percentile(sorted, 0.75)),
+    q1: Math.round(percentile(sorted, 0.25)),
+    q3: Math.round(percentile(sorted, 0.75)),
     median: Math.round(percentile(sorted, 0.5)),
     count: gaps.length,
   };
@@ -79,7 +80,7 @@ function renderHero(stable) {
   if (!stats) {
     els.heroTypicalGap.textContent = "not enough history yet";
   } else {
-    els.heroTypicalGap.textContent = `typical gap: ${stats.min}d–${stats.max}d (median ${stats.median}d, n=${stats.count})`;
+    els.heroTypicalGap.textContent = `typical gap: ${stats.q1}d–${stats.q3}d (median ${stats.median}d, n=${stats.count})`;
   }
 }
 
@@ -234,6 +235,7 @@ function renderChart(stable, latest) {
 }
 
 function render(state) {
+  lastState = state;
   renderHero(state.stable);
   renderHistory(state.stable);
   renderLatest(state.latest);
@@ -270,7 +272,8 @@ function setTheme(theme) {
   if (chartInstance) {
     chartInstance.destroy();
     chartInstance = null;
-    load();
+    if (lastState) renderChart(lastState.stable, lastState.latest);
+    else load();
   }
 }
 
