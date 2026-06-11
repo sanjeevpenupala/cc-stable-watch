@@ -62,6 +62,20 @@ function computeGapStats(stable) {
   };
 }
 
+// When `first_observed_utc` is more than a day after `published_to_npm_at`,
+// we missed the actual stable flip and "bumped N days ago" relative to our
+// observation would be misleading. Anchor on npm publish date and flag it.
+function bumpAnchor(entry) {
+  if (entry.published_to_npm_at) {
+    const observed = new Date(entry.first_observed_utc).getTime();
+    const published = new Date(entry.published_to_npm_at).getTime();
+    if (observed - published > 86400000) {
+      return { iso: entry.published_to_npm_at, approx: true };
+    }
+  }
+  return { iso: entry.first_observed_utc, approx: false };
+}
+
 function renderHero(stable) {
   if (stable.length === 0) {
     els.heroVersion.textContent = "—";
@@ -72,9 +86,11 @@ function renderHero(stable) {
   const current = stable[stable.length - 1];
   els.heroVersion.textContent = current.version;
 
-  const days = Math.max(0, Math.floor(daysBetween(current.first_observed_utc, new Date().toISOString())));
+  const anchor = bumpAnchor(current);
+  const days = Math.max(0, Math.floor(daysBetween(anchor.iso, new Date().toISOString())));
+  const prefix = anchor.approx ? "first seen" : "bumped";
   els.heroBumped.textContent =
-    days === 0 ? "bumped today" : `bumped ${days} day${days === 1 ? "" : "s"} ago`;
+    days === 0 ? `${prefix} today` : `${prefix} ${days} day${days === 1 ? "" : "s"} ago`;
 
   const stats = computeGapStats(stable);
   if (!stats) {
@@ -172,7 +188,9 @@ function stableVersionAt(stable, iso) {
 function buildLagSeries(stable, latest) {
   const points = [];
   for (const lat of latest) {
-    const sta = stableVersionAt(stable, lat.first_observed_utc);
+    // Fall back to earliest stable when no entry predates this observation:
+    // happens at seed time when both channels were captured by the same poll.
+    const sta = stableVersionAt(stable, lat.first_observed_utc) ?? stable[0];
     if (!sta) continue;
     const lagDays = daysBetween(sta.first_observed_utc, lat.first_observed_utc);
     points.push({ x: lat.first_observed_utc, y: Math.max(0, Number(lagDays.toFixed(2))) });
