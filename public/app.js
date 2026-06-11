@@ -257,3 +257,23 @@ async function load() {
 els.retryButton.addEventListener("click", load);
 
 load();
+
+function getTheme() {
+  return document.documentElement.getAttribute("data-theme") || "light";
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  try {
+    localStorage.setItem("ccsw-theme", theme);
+  } catch (e) {}
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
+    load();
+  }
+}
+
+els.themeToggle.addEventListener("click", () => {
+  setTheme(getTheme() === "dark" ? "light" : "dark");
+});
