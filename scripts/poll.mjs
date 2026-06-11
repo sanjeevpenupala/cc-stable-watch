@@ -39,12 +39,15 @@ async function fetchRegistry() {
     headers: { accept: "application/json" },
   });
   if (!res.ok) {
-    throw new Error(`npm registry returned ${res.status} ${res.statusText}`);
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `npm registry returned ${res.status} ${res.statusText}${body ? ": " + body.slice(0, 200) : ""}`,
+    );
   }
   return res.json();
 }
 
-function diffAndAppend(history, channel, currentVersion, publishedAt) {
+function computeChangeset(history, channel, currentVersion, publishedAt) {
   const last = history[history.length - 1];
   if (last && last.version === currentVersion) {
     return { changed: false, entry: null };
@@ -72,13 +75,13 @@ async function main() {
   const stableHistory = readJsonArray(STABLE_PATH);
   const latestHistory = readJsonArray(LATEST_PATH);
 
-  const stableDiff = diffAndAppend(
+  const stableDiff = computeChangeset(
     stableHistory,
     "stable",
     currentStable,
     meta.time?.[currentStable] ?? null,
   );
-  const latestDiff = diffAndAppend(
+  const latestDiff = computeChangeset(
     latestHistory,
     "latest",
     currentLatest,
