@@ -71,7 +71,7 @@ function renderHero(stable) {
   const current = stable[stable.length - 1];
   els.heroVersion.textContent = current.version;
 
-  const days = Math.floor(daysBetween(current.first_observed_utc, new Date().toISOString()));
+  const days = Math.max(0, Math.floor(daysBetween(current.first_observed_utc, new Date().toISOString())));
   els.heroBumped.textContent =
     days === 0 ? "bumped today" : `bumped ${days} day${days === 1 ? "" : "s"} ago`;
 
@@ -90,6 +90,15 @@ function fmtDateUTC(iso) {
 
 function lifespanDays(thisIso, nextIso) {
   return Math.max(0, Math.round(daysBetween(thisIso, nextIso)));
+}
+
+function safeUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" || u.protocol === "http:" ? url : "#";
+  } catch {
+    return "#";
+  }
 }
 
 function escapeHtml(s) {
@@ -120,7 +129,7 @@ function renderHistory(stable) {
         `<td>${escapeHtml(entry.version)}</td>` +
         `<td>${fmtDateUTC(entry.first_observed_utc)}</td>` +
         `<td>${lifespan}</td>` +
-        `<td><a href="${escapeAttr(entry.changelog_url)}" rel="noopener noreferrer" target="_blank">view</a></td>` +
+        `<td><a href="${escapeAttr(safeUrl(entry.changelog_url))}" rel="noopener noreferrer" target="_blank">view</a></td>` +
         `</tr>`,
     );
   }
@@ -145,10 +154,11 @@ function renderLatest(latest) {
     gaps.push(daysBetween(latest[i - 1].first_observed_utc, latest[i].first_observed_utc));
   }
   const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-  const avgDays = avg < 1 ? avg.toFixed(1) : Math.round(avg).toString();
-  els.latestCadence.textContent = `Anthropic pushes a new build every ${avgDays} day${avgDays === "1" ? "" : "s"} on average.`;
+  const rounded = avg < 1 ? Number(avg.toFixed(1)) : Math.round(avg);
+  els.latestCadence.textContent = `Anthropic pushes a new build every ${rounded} day${rounded === 1 ? "" : "s"} on average.`;
 }
 
+// Assumes `stable` is sorted ascending by first_observed_utc (poller invariant).
 function stableVersionAt(stable, iso) {
   let active = null;
   for (const entry of stable) {
