@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CC Stable Watch — Claude Code stable release tracker</title>
+    <meta
+      name="description"
+      content="Unofficial community tracker for the Claude Code CLI stable release channel."
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wordmark">CC Stable Watch</div>
+      <div class="header-actions">
+        <button
+          id="theme-toggle"
+          type="button"
+          aria-label="Toggle theme"
+          title="Toggle theme"
+        >
+          <span data-theme-icon="light">☀</span>
+          <span data-theme-icon="dark">☾</span>
+        </button>
+        <a
+          class="repo-link"
+          href="https://github.com/sanjeevpenupala/cc-stable-watch"
+          rel="noopener noreferrer"
+          target="_blank"
+          >GitHub</a
+        >
+      </div>
+    </header>
+
+    <main>
+      <section id="hero" class="hero" aria-live="polite">
+        <div class="hero-version" id="hero-version">—</div>
+        <div class="hero-meta">
+          <span id="hero-bumped">Loading…</span>
+          <span class="dot" aria-hidden="true">·</span>
+          <span id="hero-typical-gap">—</span>
+        </div>
+      </section>
+
+      <section class="chart-section" aria-labelledby="chart-heading">
+        <h2 id="chart-heading">Latest is ahead of Stable by</h2>
+        <p class="chart-subtitle">
+          Days the <code>latest</code> tag has been ahead of <code>stable</code>.
+          Bigger gap → bump may be closer.
+        </p>
+        <div class="chart-wrap">
+          <canvas id="lag-chart" aria-label="Latest-vs-stable lag over time"></canvas>
+        </div>
+      </section>
+
+      <section class="history-section" aria-labelledby="history-heading">
+        <h2 id="history-heading">Stable promotions</h2>
+        <table id="history-table">
+          <thead>
+            <tr>
+              <th scope="col">Version</th>
+              <th scope="col">Promoted</th>
+              <th scope="col">Lifespan</th>
+              <th scope="col">Changelog</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </section>
+
+      <section class="latest-section" aria-labelledby="latest-heading">
+        <h2 id="latest-heading">Latest channel</h2>
+        <p>
+          Current latest:
+          <strong id="latest-version">—</strong>.
+          <span id="latest-cadence">—</span>
+        </p>
+      </section>
+
+      <section id="error-state" class="error-state" hidden>
+        <p>Could not load tracker data.</p>
+        <button id="retry-button" type="button">Retry</button>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        Unofficial community tracker. Not affiliated with Anthropic. Data
+        sourced from the public npm registry.
+      </p>
+      <p>
+        <a
+          href="https://github.com/sanjeevpenupala/cc-stable-watch/blob/main/LICENSE"
+          rel="noopener noreferrer"
+          target="_blank"
+          >License</a
+        >
+      </p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
