@@ -34,22 +34,28 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # A real version change deploys; a keepalive-only touch does not.
+          # The keepalive commit still lands daily to defeat the 60-day
+          # scheduled-workflow auto-disable.
+          if git diff --quiet -- data/stable.json data/latest.json; then
+            echo "version_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "version_changed=true" >> "$GITHUB_OUTPUT"
+          fi
           if git diff --quiet -- data/; then
             echo "No data changes."
-            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git add data/
           git commit -m "data: daily poll $(date -u +%Y-%m-%dT%H:%MZ)"
           git pull --rebase origin main
           git push
-          echo "pushed=true" >> "$GITHUB_OUTPUT"
 
       # GITHUB_TOKEN pushes don't trigger the pages workflow's `on: push`
       # (GitHub recursion prevention). workflow_dispatch is exempt, so kick
-      # the deploy explicitly after data lands on main.
+      # the deploy explicitly — but only when a tracked version changed.
       - name: Trigger pages deploy
-        if: steps.commit.outputs.pushed == 'true'
+        if: steps.commit.outputs.version_changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run pages.yml --ref main
