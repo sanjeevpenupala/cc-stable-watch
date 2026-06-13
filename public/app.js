@@ -231,17 +231,39 @@ function stableVersionAt(stable, iso) {
   return active;
 }
 
+// UTC midnight (ms) for the calendar day an ISO timestamp falls on.
+function utcDayStart(iso) {
+  const d = new Date(iso);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+// "Jun 11" in UTC — labels must match the bucketing so points land on ticks.
+function utcDayLabel(dayStartMs) {
+  return new Date(dayStartMs).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+// We poll once a day, so sub-day precision is false precision — the exact
+// timestamps are cron-firing artifacts, not release signal. Quantize lag to
+// whole UTC days and emit one point per UTC day (last observation wins) so the
+// chart shows honest daily resolution aligned to the date gridlines.
 function buildLagSeries(stable, latest) {
-  const points = [];
+  const byDay = new Map();
   for (const lat of latest) {
     // Fall back to earliest stable when no entry predates this observation:
     // happens at seed time when both channels were captured by the same poll.
     const sta = stableVersionAt(stable, lat.first_observed_utc) ?? stable[0];
     if (!sta) continue;
-    const lagDays = daysBetween(sta.first_observed_utc, lat.first_observed_utc);
-    points.push({ x: lat.first_observed_utc, y: Math.max(0, Number(lagDays.toFixed(2))) });
+    const latDay = utcDayStart(lat.first_observed_utc);
+    const lagDays = Math.max(0, Math.round((latDay - utcDayStart(sta.first_observed_utc)) / 86400000));
+    byDay.set(latDay, { label: utcDayLabel(latDay), y: lagDays });
   }
-  return points;
+  return [...byDay.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, point]) => point);
 }
 
 function readCssVar(name) {
@@ -274,10 +296,11 @@ function renderChart(stable, latest) {
   chartInstance = new Chart(els.lagChart, {
     type: "line",
     data: {
+      labels: points.map((p) => p.label),
       datasets: [
         {
-          label: "Days latest is ahead of stable",
-          data: points,
+          label: "Days latest is ahead of stable (UTC)",
+          data: points.map((p) => p.y),
           borderColor: accent,
           backgroundColor: accent + "33",
           tension: 0.25,
@@ -293,8 +316,7 @@ function renderChart(stable, latest) {
       plugins: { legend: { display: false } },
       scales: {
         x: {
-          type: "time",
-          time: { unit: "day" },
+          type: "category",
           grid: { color: line },
           ticks: { color: muted },
         },
