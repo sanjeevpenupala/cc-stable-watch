@@ -79,5 +79,14 @@
     "source": "npm-registry",
     "changelog_url": "https://github.com/anthropics/claude-code/releases/tag/v2.1.185",
     "notes": null
+  },
+  {
+    "channel": "stable",
+    "version": "2.1.187",
+    "published_to_npm_at": "2026-06-23T17:55:41.991Z",
+    "first_observed_utc": "2026-07-02T11:44:14.320Z",
+    "source": "npm-registry",
+    "changelog_url": "https://github.com/anthropics/claude-code/releases/tag/v2.1.187",
+    "notes": null
   }
 ]
