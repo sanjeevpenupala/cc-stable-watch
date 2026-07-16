@@ -232,5 +232,14 @@
     "source": "npm-registry",
     "changelog_url": "https://github.com/anthropics/claude-code/releases/tag/v2.1.210",
     "notes": null
+  },
+  {
+    "channel": "latest",
+    "version": "2.1.211",
+    "published_to_npm_at": "2026-07-15T19:24:07.013Z",
+    "first_observed_utc": "2026-07-16T11:13:16.044Z",
+    "source": "npm-registry",
+    "changelog_url": "https://github.com/anthropics/claude-code/releases/tag/v2.1.211",
+    "notes": null
   }
 ]
