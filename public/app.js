@@ -5,7 +5,6 @@ const DATA_RELEASES = "data/releases.json";
 const els = {
   heroVersion: document.getElementById("hero-version"),
   heroBumped: document.getElementById("hero-bumped"),
-  heroTypicalGap: document.getElementById("hero-typical-gap"),
   heroLatest: document.getElementById("hero-latest"),
   historyTbody: document.getElementById("history-tbody"),
   latestVersion: document.getElementById("latest-version"),
@@ -143,7 +142,6 @@ function renderHero(stable, latest, releases) {
   if (stable.length === 0) {
     els.heroVersion.textContent = "—";
     els.heroBumped.textContent = "No data yet";
-    els.heroTypicalGap.textContent = "";
     els.heroLatest.textContent = "";
     return;
   }
@@ -156,15 +154,8 @@ function renderHero(stable, latest, releases) {
   const days = calendarDaysSince(current.first_observed_utc);
   const ago = days === 0 ? "today" : `${plural(days, "day")} ago`;
   els.heroBumped.textContent = isSeed(stable, stable.length - 1)
-    ? `on stable since at least ${ago}`
-    : `promoted ${ago}`;
-
-  const stats = computeGapStats(stable);
-  if (!stats) {
-    els.heroTypicalGap.textContent = "not enough history yet";
-  } else {
-    els.heroTypicalGap.innerHTML = `typical gap: ${range(stats, "d")} (median ${stats.median}d, n=${stats.count})`;
-  }
+    ? `Current stable, already stable when tracking began ${ago}`
+    : `Current stable, promoted ${ago}`;
 
   const currentLatest = latest[latest.length - 1];
   if (!currentLatest) {
@@ -214,8 +205,8 @@ function escapeAttr(s) {
 }
 
 // "1-5" kept on one line so it never wraps at the hyphen.
-function range(stats, unit = "") {
-  const text = stats.q1 === stats.q3 ? `${stats.q1}${unit}` : `${stats.q1}${unit}-${stats.q3}${unit}`;
+function range(stats) {
+  const text = stats.q1 === stats.q3 ? `${stats.q1}` : `${stats.q1}-${stats.q3}`;
   return `<span class="nowrap">${text}</span>`;
 }
 
@@ -252,22 +243,22 @@ function renderHistory(stable) {
       : fmtDateUTC(entry.first_observed_utc);
 
     const wait = waitDays(stable, i);
-    let waited = wait === null ? '<span class="muted">unknown</span>' : `${wait} d`;
+    let waited = wait === null ? '<span class="muted">unknown</span>' : `${wait}`;
     if (isFastTracked(wait, waitStats)) waited += ' <span class="tag">fast-tracked</span>';
 
     const span = isCurrent
       ? calendarDaysSince(entry.first_observed_utc)
       : lifespanDays(entry.first_observed_utc, next.first_observed_utc);
-    const stableFor = isCurrent ? `${span} d so far` : seed ? `${span}+ d` : `${span} d`;
+    const stableFor = isCurrent ? `${span} so far` : seed ? `${span}+` : `${span}`;
 
     rows.push(
       `<tr class="${isCurrent ? "current" : ""}"${seed ? ' title="Already on stable when tracking began"' : ""}>` +
-        `<td>${escapeHtml(entry.version)}</td>` +
+        `<th scope="row">${escapeHtml(entry.version)}</th>` +
         `<td>${published}</td>` +
         `<td>${promoted}</td>` +
         `<td>${waited}</td>` +
         `<td>${stableFor}</td>` +
-        `<td><a href="${escapeAttr(safeUrl(entry.changelog_url))}" rel="noopener noreferrer" target="_blank">view</a></td>` +
+        `<td><a href="${escapeAttr(safeUrl(entry.changelog_url))}" rel="noopener noreferrer" target="_blank" aria-label="Changelog for ${escapeAttr(entry.version)} (opens in a new tab)">view</a></td>` +
         `</tr>`,
     );
   }

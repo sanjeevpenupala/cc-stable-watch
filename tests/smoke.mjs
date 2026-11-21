@@ -7,7 +7,6 @@ const SITE_URL = process.env.SITE_URL || "http://localhost:8000";
 const REQUIRED_IDS = [
   "hero-version",
   "hero-bumped",
-  "hero-typical-gap",
   "history-summary",
   "history-tbody",
   "latest-version",

@@ -52,6 +52,8 @@
       name="twitter:image"
       content="https://sanjeevpenupala.github.io/cc-stable-watch/og.png"
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
       rel="stylesheet"
@@ -112,11 +114,11 @@
 
     <main>
       <section id="hero" class="hero" aria-live="polite">
-        <h1 class="hero-version" id="hero-version">—</h1>
+        <h1 class="hero-version">
+          <span class="visually-hidden">Current stable version: </span><span id="hero-version">—</span>
+        </h1>
         <div class="hero-meta">
           <span id="hero-bumped">Loading…</span>
-          <span class="dot" aria-hidden="true">·</span>
-          <span id="hero-typical-gap">—</span>
         </div>
         <div class="hero-meta hero-meta-secondary">
           <span id="hero-latest">—</span>
@@ -126,21 +128,36 @@
       <section class="history-section" aria-labelledby="history-heading">
         <h2 id="history-heading">Stable promotions</h2>
         <p class="section-summary" id="history-summary">Loading…</p>
+        <dl class="column-guide" id="column-guide">
+          <div>
+            <dt>Waited</dt>
+            <dd>Days from npm publish to promotion.</dd>
+          </div>
+          <div>
+            <dt>Stable for</dt>
+            <dd>Days until the next version replaced it.</dd>
+          </div>
+          <div>
+            <dt>Fast-tracked</dt>
+            <dd>Waited under half the usual time.</dd>
+          </div>
+        </dl>
         <p class="section-note">
-          <strong>Waited:</strong> days from npm publish to promotion.
-          <strong>Stable for:</strong> days until the next version replaced it.
-          <strong>Fast-tracked:</strong> waited under half the usual time.
           Dates are UTC and can be up to a day late, since we check once a day.
         </p>
-        <div class="table-wrap">
-          <table id="history-table">
+        <div class="table-wrap" tabindex="0" role="region" aria-labelledby="history-heading">
+          <table id="history-table" aria-describedby="column-guide">
+            <caption class="visually-hidden">
+              Stable promotions, newest first, with how long each version
+              waited before promotion and how long it stayed stable
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Version</th>
                 <th scope="col">Published</th>
                 <th scope="col">Promoted</th>
-                <th scope="col">Waited</th>
-                <th scope="col">Stable for</th>
+                <th scope="col">Waited <span class="unit">(days)</span></th>
+                <th scope="col">Stable for <span class="unit">(days)</span></th>
                 <th scope="col">Changelog</th>
               </tr>
             </thead>

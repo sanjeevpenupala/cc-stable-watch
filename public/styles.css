@@ -4,7 +4,9 @@
   --color-fg: #141413;
   --color-fg-muted: #6b6962;
   --color-line: #d6d3c5;
-  --color-accent: #d97757;
+  /* #cf6c4b keeps the brand hue but clears 3:1 on --color-bg (3.38:1), which
+     the large hero version and the focus ring both need (WCAG 1.4.3, 1.4.11). */
+  --color-accent: #cf6c4b;
   /* Darker accent used wherever the accent renders as body-size text
      or as a background paired with white text — keeps AA contrast. */
   --color-accent-text: #b85031;
@@ -18,11 +20,32 @@
 
   --pad-page: clamp(20px, 4vw, 48px);
   --content-max: 880px;
+
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
 
 html, body { margin: 0; padding: 0; }
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  color: var(--color-fg);
+}
+
+html { scrollbar-color: var(--color-line) transparent; }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 body {
   background: var(--color-bg);
@@ -155,7 +178,6 @@ html[data-theme="dark"] #theme-toggle [data-theme-icon="dark"] {
   font-size: 16px;
 }
 
-.hero-meta .dot { margin: 0 8px; opacity: 0.6; }
 
 h2 {
   font-weight: 600;
@@ -172,6 +194,36 @@ h2 {
   line-height: 1.5;
 }
 
+/* Column guide: one term per row, term in a fixed-width column so the
+   definitions line up. Stacks on narrow screens. Sits outside the
+   horizontal scroller so it always wraps to the viewport. */
+.column-guide {
+  margin: 16px 0 8px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.column-guide div {
+  display: flex;
+  gap: 16px;
+  padding: 2px 0;
+}
+
+.column-guide dt {
+  flex: 0 0 7.5rem;
+  font-weight: 600;
+}
+
+.column-guide dd {
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+@media (max-width: 480px) {
+  .column-guide div { flex-direction: column; gap: 0; padding: 4px 0; }
+  .column-guide dt { flex-basis: auto; }
+}
+
 .section-note {
   margin: 0 0 16px;
   color: var(--color-fg-muted);
@@ -181,7 +233,6 @@ h2 {
 
 .nowrap { white-space: nowrap; }
 
-.section-note strong { color: var(--color-fg); font-weight: 600; }
 
 .hero-meta-secondary {
   margin-top: 4px;
@@ -189,10 +240,21 @@ h2 {
   opacity: 0.9;
 }
 
+/* Scroll shadows: an edge shadow appears on whichever side has more table
+   to reveal, so phone users can see the table scrolls sideways. The "local"
+   covers scroll with the content and hide the "scroll" shadows at each end. */
 .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  --scroll-shadow: color-mix(in srgb, var(--color-fg) 15%, transparent);
+  background:
+    linear-gradient(to right, var(--color-bg) 40%, transparent) left / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--color-bg) 40%, transparent) right / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--scroll-shadow), transparent) left / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--scroll-shadow), transparent) right / 12px 100% no-repeat scroll;
 }
+
+.table-wrap:focus-visible { border-radius: 0; }
 
 #history-table {
   width: 100%;
@@ -217,7 +279,7 @@ h2 {
   border-bottom: 1px solid var(--color-line);
 }
 
-#history-table th {
+#history-table thead th {
   font-weight: 600;
   color: var(--color-fg-muted);
   font-size: 13px;
@@ -228,7 +290,12 @@ h2 {
 #history-table td a { color: var(--color-accent-text); text-decoration: none; }
 #history-table td a:hover { text-decoration: underline; }
 
-#history-table tr.current td { font-weight: 600; }
+/* Version cells are row headers for screen readers; style them like data. */
+#history-table tbody th { font-weight: 400; }
+#history-table thead .unit { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+#history-table tr.current td,
+#history-table tr.current th { font-weight: 600; }
 #history-table th, #history-table td { white-space: nowrap; }
 #history-table .muted { color: var(--color-fg-muted); }
 
@@ -289,6 +356,8 @@ html[data-theme="dark"] {
   --color-accent: #e58a6b;
   --color-accent-text: #e58a6b;
   --color-accent-fg: #141413;
+
+  color-scheme: dark;
 }
 
 
