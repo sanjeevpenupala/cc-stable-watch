@@ -1,5 +1,6 @@
 const DATA_STABLE = "data/stable.json";
 const DATA_LATEST = "data/latest.json";
+const DATA_RELEASES = "data/releases.json";
 
 const els = {
   heroVersion: document.getElementById("hero-version"),
@@ -12,6 +13,7 @@ const els = {
   lagChart: document.getElementById("lag-chart"),
   chartWrap: document.getElementById("chart-wrap"),
   chartPlaceholder: document.getElementById("chart-placeholder"),
+  soakMedian: document.getElementById("soak-median"),
   errorState: document.getElementById("error-state"),
   retryButton: document.getElementById("retry-button"),
   themeToggle: document.getElementById("theme-toggle"),
@@ -50,10 +52,20 @@ function percentile(sortedNums, p) {
   return sortedNums[lo] + (sortedNums[hi] - sortedNums[lo]) * (i - lo);
 }
 
+// The first machine-written entry is whatever was on stable when polling
+// began, so its promotion date is unknown (it was promoted on or before the
+// first poll). Manual backfills carry their own evidence and are trusted.
+function isSeed(stable, i) {
+  return i === 0 && stable[0].source !== "manual";
+}
+
+// Gaps between consecutive promotions. The gap that starts at the seed entry
+// is only a lower bound, so it is left out of the stats.
 function computeGapStats(stable) {
-  if (stable.length < 2) return null;
+  const start = isSeed(stable, 0) ? 2 : 1;
+  if (stable.length <= start) return null;
   const gaps = [];
-  for (let i = 1; i < stable.length; i++) {
+  for (let i = start; i < stable.length; i++) {
     gaps.push(daysBetween(stable[i - 1].first_observed_utc, stable[i].first_observed_utc));
   }
   const sorted = [...gaps].sort((a, b) => a - b);
@@ -65,40 +77,44 @@ function computeGapStats(stable) {
   };
 }
 
-// When `first_observed_utc` is more than a day after `published_to_npm_at`,
-// we missed the actual stable flip and "bumped N days ago" relative to our
-// observation would be misleading. Anchor on npm publish date and flag it.
-function bumpAnchor(entry) {
-  if (entry.published_to_npm_at) {
-    const observed = new Date(entry.first_observed_utc).getTime();
-    const published = new Date(entry.published_to_npm_at).getTime();
-    if (observed - published > 86400000) {
-      return { iso: entry.published_to_npm_at, approx: true };
-    }
-  }
-  return { iso: entry.first_observed_utc, approx: false };
-}
-
-// Parse "a.b.c" → [a, b, c] as integers. Returns null if not in that shape.
+// Parse "a.b.c" into [a, b, c] as integers. Returns null if not in that shape.
 function parseSemver(v) {
-  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(v || "");
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(v || "");
   if (!m) return null;
   return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
-// Best-effort "patch versions between stable and latest" when major+minor
-// match (true for every release of this package so far). Falls back to null
-// when majors/minors differ — we can't honestly count across minors without
-// fetching the full version list from npm.
-function versionDistance(stableV, latestV) {
-  const a = parseSemver(stableV);
-  const b = parseSemver(latestV);
-  if (!a || !b) return null;
-  if (a[0] !== b[0] || a[1] !== b[1]) return null;
-  return b[2] - a[2];
+function compareSemver(a, b) {
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] - b[i];
+  return 0;
 }
 
-function renderHero(stable, latest) {
+// Number of versions actually published to npm after `stableV`, up to and
+// including `latestV`. Version numbers skip, so subtracting patch numbers
+// overcounts. Returns null when the release list is unavailable.
+function releasesBetween(releases, stableV, latestV) {
+  const lo = parseSemver(stableV);
+  const hi = parseSemver(latestV);
+  if (!releases || !lo || !hi) return null;
+  let n = 0;
+  for (const r of releases) {
+    const v = parseSemver(r.version);
+    if (v && compareSemver(v, lo) > 0 && compareSemver(v, hi) <= 0) n++;
+  }
+  return n;
+}
+
+// UTC midnight (ms) for the calendar day an ISO timestamp falls on.
+function utcDayStart(iso) {
+  const d = new Date(iso);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+function renderHero(stable, latest, releases) {
   if (stable.length === 0) {
     els.heroVersion.textContent = "—";
     els.heroBumped.textContent = "No data yet";
@@ -109,15 +125,15 @@ function renderHero(stable, latest) {
   const current = stable[stable.length - 1];
   els.heroVersion.textContent = current.version;
 
-  const anchor = bumpAnchor(current);
-  const days = Math.max(0, Math.floor(daysBetween(anchor.iso, new Date().toISOString())));
-  if (anchor.approx) {
-    els.heroBumped.textContent =
-      days === 0 ? "tracking since today" : `tracking since ${days} day${days === 1 ? "" : "s"} ago`;
-  } else {
-    els.heroBumped.textContent =
-      days === 0 ? "bumped today" : `bumped ${days} day${days === 1 ? "" : "s"} ago`;
-  }
+  // first_observed_utc is our daily poll's first sighting, so the real
+  // promotion happened at most about a day earlier. The npm publish time is
+  // NOT a proxy: builds wait on npm for days before being promoted.
+  // Count calendar UTC days so this agrees with the date in the table.
+  const days = Math.max(0, Math.round((utcDayStart(new Date().toISOString()) - utcDayStart(current.first_observed_utc)) / 86400000));
+  const ago = days === 0 ? "today" : `${plural(days, "day")} ago`;
+  els.heroBumped.textContent = isSeed(stable, stable.length - 1)
+    ? `on stable since at least ${ago}`
+    : `promoted ${ago}`;
 
   const stats = computeGapStats(stable);
   if (!stats) {
@@ -131,13 +147,13 @@ function renderHero(stable, latest) {
     els.heroLatest.textContent = "";
     return;
   }
-  const dist = versionDistance(current.version, currentLatest.version);
+  const dist = releasesBetween(releases, current.version, currentLatest.version);
   if (dist === null) {
     els.heroLatest.textContent = `latest: ${currentLatest.version}`;
   } else if (dist <= 0) {
     els.heroLatest.textContent = `latest: ${currentLatest.version} (caught up)`;
   } else {
-    els.heroLatest.textContent = `latest: ${currentLatest.version} (+${dist} version${dist === 1 ? "" : "s"} ahead)`;
+    els.heroLatest.textContent = `latest: ${currentLatest.version} (${plural(dist, "release")} ahead)`;
   }
 }
 
@@ -184,13 +200,16 @@ function renderHistory(stable) {
     const entry = stable[i];
     const next = stable[i + 1];
     const isCurrent = i === stable.length - 1;
-    const lifespan = isCurrent
-      ? "current"
-      : `${lifespanDays(entry.first_observed_utc, next.first_observed_utc)} d`;
+    const seed = isSeed(stable, i);
+    const span = isCurrent ? null : lifespanDays(entry.first_observed_utc, next.first_observed_utc);
+    const lifespan = isCurrent ? "current" : seed ? `${span}+ d` : `${span} d`;
+    const promoted = seed
+      ? `on or before ${fmtDateUTC(entry.first_observed_utc)}`
+      : fmtDateUTC(entry.first_observed_utc);
     rows.push(
-      `<tr class="${isCurrent ? "current" : ""}">` +
+      `<tr class="${isCurrent ? "current" : ""}"${seed ? ' title="Already on stable when tracking began"' : ""}>` +
         `<td>${escapeHtml(entry.version)}</td>` +
-        `<td>${fmtDateUTC(entry.first_observed_utc)}</td>` +
+        `<td>${promoted}</td>` +
         `<td>${lifespan}</td>` +
         `<td><a href="${escapeAttr(safeUrl(entry.changelog_url))}" rel="noopener noreferrer" target="_blank">view</a></td>` +
         `</tr>`,
@@ -199,71 +218,42 @@ function renderHistory(stable) {
   els.historyTbody.innerHTML = rows.join("");
 }
 
-function renderLatest(latest) {
+// Cadence comes from npm publish times, not from our observations: a daily
+// poll of dist-tags.latest sees at most one new version per day.
+function renderLatest(latest, releases) {
   if (latest.length === 0) {
     els.latestVersion.textContent = "—";
     els.latestCadence.textContent = "No data yet.";
     return;
   }
-  const current = latest[latest.length - 1];
-  els.latestVersion.textContent = current.version;
+  els.latestVersion.textContent = latest[latest.length - 1].version;
 
-  if (latest.length < 2) {
-    els.latestCadence.textContent = "Cadence will appear once more data is collected.";
+  if (!releases) {
+    els.latestCadence.textContent = "";
     return;
   }
-  const gaps = [];
-  for (let i = 1; i < latest.length; i++) {
-    gaps.push(daysBetween(latest[i - 1].first_observed_utc, latest[i].first_observed_utc));
-  }
-  const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-  const rounded = avg < 1 ? Number(avg.toFixed(1)) : Math.round(avg);
-  els.latestCadence.textContent = `Anthropic pushes a new build every ${rounded} day${rounded === 1 ? "" : "s"} on average.`;
+  const since = Date.now() - 30 * 86400000;
+  const recent = releases.filter((r) => new Date(r.published_at).getTime() >= since).length;
+  const perWeek = Math.round((recent / 30) * 7 * 10) / 10;
+  els.latestCadence.textContent =
+    `Anthropic published ${plural(recent, "build")} to npm in the last 30 days (about ${perWeek} per week).`;
 }
 
-// Assumes `stable` is sorted ascending by first_observed_utc (poller invariant).
-function stableVersionAt(stable, iso) {
-  let active = null;
-  for (const entry of stable) {
-    if (new Date(entry.first_observed_utc) <= new Date(iso)) active = entry;
-    else break;
-  }
-  return active;
-}
-
-// UTC midnight (ms) for the calendar day an ISO timestamp falls on.
-function utcDayStart(iso) {
-  const d = new Date(iso);
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-}
-
-// "Jun 11" in UTC — labels must match the bucketing so points land on ticks.
-function utcDayLabel(dayStartMs) {
-  return new Date(dayStartMs).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
+// One bar per promotion: days between the version's npm publish and our
+// first sighting of it on stable ("soak time"). Whole days only, since we poll
+// daily. The seed entry is skipped because its promotion date is unknown.
+function buildSoakSeries(stable) {
+  const points = [];
+  stable.forEach((entry, i) => {
+    if (isSeed(stable, i) || !entry.published_to_npm_at) return;
+    points.push({
+      label: entry.version,
+      y: Math.max(0, Math.round(daysBetween(entry.published_to_npm_at, entry.first_observed_utc))),
+      published: fmtDateUTC(entry.published_to_npm_at),
+      observed: fmtDateUTC(entry.first_observed_utc),
+    });
   });
-}
-
-// We poll once a day, so sub-day precision is false precision — the exact
-// timestamps are cron-firing artifacts, not release signal. Quantize lag to
-// whole UTC days and emit one point per UTC day (last observation wins) so the
-// chart shows honest daily resolution aligned to the date gridlines.
-function buildLagSeries(stable, latest) {
-  const byDay = new Map();
-  for (const lat of latest) {
-    // Fall back to earliest stable when no entry predates this observation:
-    // happens at seed time when both channels were captured by the same poll.
-    const sta = stableVersionAt(stable, lat.first_observed_utc) ?? stable[0];
-    if (!sta) continue;
-    const latDay = utcDayStart(lat.first_observed_utc);
-    const lagDays = Math.max(0, Math.round((latDay - utcDayStart(sta.first_observed_utc)) / 86400000));
-    byDay.set(latDay, { label: utcDayLabel(latDay), y: lagDays });
-  }
-  return [...byDay.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([, point]) => point);
+  return points;
 }
 
 function readCssVar(name) {
@@ -275,7 +265,7 @@ function renderChart(stable, latest) {
     console.warn("Chart.js not loaded");
     return;
   }
-  const points = buildLagSeries(stable, latest);
+  const points = buildSoakSeries(stable);
   if (chartInstance) chartInstance.destroy();
 
   // A single observation can't show change-over-time. Hide chart and
@@ -289,23 +279,27 @@ function renderChart(stable, latest) {
   els.chartWrap.hidden = false;
   els.chartPlaceholder.hidden = true;
 
+  const median = Math.round(percentile(points.map((p) => p.y).sort((a, b) => a - b), 0.5));
+  els.soakMedian.textContent = plural(median, "day");
+  // Builds promoted in under half the usual wait were fast-tracked (hotfixes).
+  const isFast = (p) => p.y < median / 2;
+
   const accent = readCssVar("--color-accent") || "#d97757";
   const muted = readCssVar("--color-fg-muted") || "#6b6962";
   const line = readCssVar("--color-line") || "#e8e6dc";
 
   chartInstance = new Chart(els.lagChart, {
-    type: "line",
+    type: "bar",
     data: {
       labels: points.map((p) => p.label),
       datasets: [
         {
-          label: "Days latest is ahead of stable (UTC)",
+          label: "Days from npm publish to stable",
           data: points.map((p) => p.y),
-          borderColor: accent,
-          backgroundColor: accent + "33",
-          tension: 0.25,
-          pointRadius: points.length > 30 ? 0 : 3,
-          fill: true,
+          backgroundColor: points.map((p) => (isFast(p) ? accent : accent + "8c")),
+          borderRadius: 3,
+          // Same-day promotions round to 0; keep them visible.
+          minBarLength: 4,
         },
       ],
     },
@@ -313,12 +307,25 @@ function renderChart(stable, latest) {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => points[items[0].dataIndex].label,
+            label: (item) => {
+              const p = points[item.dataIndex];
+              const tag = isFast(p) ? " (fast-tracked)" : "";
+              // Short lines so the tooltip fits on phone screens.
+              return [`${plural(p.y, "day")}${tag}`, `published ${p.published}`, `stable ${p.observed}`];
+            },
+          },
+        },
+      },
       scales: {
         x: {
           type: "category",
-          grid: { color: line },
-          ticks: { color: muted },
+          grid: { display: false },
+          ticks: { color: muted, maxRotation: 60, autoSkip: true },
         },
         y: {
           beginAtZero: true,
@@ -333,20 +340,22 @@ function renderChart(stable, latest) {
 
 function render(state) {
   lastState = state;
-  renderHero(state.stable, state.latest);
+  renderHero(state.stable, state.latest, state.releases);
   renderHistory(state.stable);
-  renderLatest(state.latest);
+  renderLatest(state.latest, state.releases);
   renderChart(state.stable, state.latest);
 }
 
 async function load() {
   hideError();
   try {
-    const [stable, latest] = await Promise.all([
+    const [stable, latest, releases] = await Promise.all([
       fetchJson(DATA_STABLE),
       fetchJson(DATA_LATEST),
+      // Optional: the page still renders without it, minus release counts.
+      fetchJson(DATA_RELEASES).catch(() => null),
     ]);
-    render({ stable, latest });
+    render({ stable, latest, releases });
   } catch (err) {
     console.error("load failed", err);
     showError();
@@ -361,8 +370,17 @@ function getTheme() {
   return document.documentElement.getAttribute("data-theme") || "light";
 }
 
+// The icon shows the current theme; the label names the action, so the
+// button is unambiguous for mouse and screen-reader users alike.
+function syncThemeLabel() {
+  const label = `Switch to ${getTheme() === "dark" ? "light" : "dark"} theme`;
+  els.themeToggle.setAttribute("aria-label", label);
+  els.themeToggle.setAttribute("title", label);
+}
+
 function setTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
+  syncThemeLabel();
   try {
     localStorage.setItem("ccsw-theme", theme);
   } catch (e) {}
@@ -377,3 +395,5 @@ function setTheme(theme) {
 els.themeToggle.addEventListener("click", () => {
   setTheme(getTheme() === "dark" ? "light" : "dark");
 });
+
+syncThemeLabel();

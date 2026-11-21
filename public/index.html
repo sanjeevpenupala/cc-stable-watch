@@ -65,8 +65,8 @@
         <button
           id="theme-toggle"
           type="button"
-          aria-label="Toggle theme"
-          title="Toggle theme"
+          aria-label="Switch theme"
+          title="Switch theme"
         >
           <svg
             data-theme-icon="light"
@@ -124,18 +124,19 @@
       </section>
 
       <section class="chart-section" aria-labelledby="chart-heading">
-        <h2 id="chart-heading">Latest vs Stable lag</h2>
+        <h2 id="chart-heading">How long builds wait before stable</h2>
         <p class="chart-subtitle">
-          Days the <code>latest</code> tag has been ahead of <code>stable</code>.
-          Bigger gap → bump may be closer.
+          Days between a version's npm publish and when it showed up on
+          <code>stable</code>. Most wait about <span id="soak-median">a week</span>,
+          so <code>stable</code> is roughly the <code>latest</code> from that
+          long ago. Solid bars were fast-tracked (under half the usual wait).
         </p>
         <div class="chart-wrap" id="chart-wrap">
-          <canvas id="lag-chart" aria-label="Latest-vs-stable lag over time"></canvas>
+          <canvas id="lag-chart" aria-label="Days from npm publish to stable promotion, per stable version"></canvas>
         </div>
         <div id="chart-placeholder" class="chart-placeholder" hidden>
-          Chart fills in as we observe new <code>latest</code> releases and
-          <code>stable</code> promotions over time. Needs at least two
-          observation points to be meaningful.
+          Chart fills in as we observe <code>stable</code> promotions. Needs
+          at least two promotions to be meaningful.
         </div>
       </section>
 
