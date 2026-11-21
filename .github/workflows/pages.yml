@@ -33,6 +33,12 @@ jobs:
           cp -r public/. _site/
           mkdir -p _site/data
           cp data/stable.json data/latest.json data/releases.json _site/data/
+          # Pages serves every file with max-age=600. Version the script and
+          # stylesheet URLs per commit so a fresh index.html never pairs with
+          # a cached app.js or styles.css from the previous deploy.
+          v="${GITHUB_SHA::7}"
+          sed -i "s|src=\"app.js\"|src=\"app.js?v=$v\"|; s|href=\"styles.css\"|href=\"styles.css?v=$v\"|" _site/index.html
+          grep -q "app.js?v=$v" _site/index.html && grep -q "styles.css?v=$v" _site/index.html
 
       - uses: actions/configure-pages@v5
 
