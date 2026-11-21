@@ -32,7 +32,7 @@ jobs:
           mkdir -p _site
           cp -r public/. _site/
           mkdir -p _site/data
-          cp data/stable.json data/latest.json _site/data/
+          cp data/stable.json data/latest.json data/releases.json _site/data/
 
       - uses: actions/configure-pages@v5
 

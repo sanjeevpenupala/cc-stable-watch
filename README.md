@@ -12,7 +12,9 @@ A daily GitHub Actions cron polls
 [`@anthropic-ai/claude-code`](https://www.npmjs.com/package/@anthropic-ai/claude-code)
 on the npm registry, reads `dist-tags.stable` and `dist-tags.latest`, and
 appends a new entry to `data/stable.json` / `data/latest.json` when a version
-changes. The static frontend in `public/` reads those JSON files at runtime
+changes. It also rewrites `data/releases.json`, the full list of published
+versions with their npm publish times, which the page uses to count real
+releases and measure cadence. The static frontend in `public/` reads those JSON files at runtime
 and renders the page.
 
 The site is hosted on GitHub Pages directly from this repo. Zero build step.
@@ -24,8 +26,14 @@ pointer. We record:
 
 - `published_to_npm_at` — the version's npm publish time (lower bound).
 - `first_observed_utc` — the timestamp of our poll that first saw the new
-  version on `stable`. The actual promotion happened at most 24 hours before
-  this. No "next bump" prediction is made.
+  version on `stable`. The actual promotion happened at most about a day
+  before this (GitHub sometimes starts the daily cron hours late). No "next
+  bump" prediction is made.
+
+The npm publish time is not a stand-in for the promotion time: builds
+typically sit on npm for about a week before Anthropic promotes them to
+`stable`. The first entry in `data/stable.json` is whatever was on `stable`
+when tracking began, so its real promotion date is unknown.
 
 ## Contributing historical entries
 

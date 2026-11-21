@@ -34,10 +34,13 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # A real version change deploys; a keepalive-only touch does not.
+          # A real version change (or new npm release) deploys; a keepalive-only
+          # touch does not. status --porcelain also catches the first, untracked
+          # write of releases.json, which git diff ignores.
           # The keepalive commit still lands daily to defeat the 60-day
           # scheduled-workflow auto-disable.
-          if git diff --quiet -- data/stable.json data/latest.json; then
+          if git diff --quiet -- data/stable.json data/latest.json && \
+             [ -z "$(git status --porcelain -- data/releases.json)" ]; then
             echo "version_changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "version_changed=true" >> "$GITHUB_OUTPUT"

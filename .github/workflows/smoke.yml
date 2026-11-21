@@ -27,7 +27,7 @@ jobs:
         run: |
           mkdir -p _site/data
           cp -r public/. _site/
-          cp data/stable.json data/latest.json _site/data/
+          cp data/stable.json data/latest.json data/releases.json _site/data/
 
       - name: Serve site
         run: |

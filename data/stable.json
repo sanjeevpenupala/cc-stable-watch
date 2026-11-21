@@ -6,7 +6,7 @@
     "first_observed_utc": "2026-06-11T03:43:29.538Z",
     "source": "npm-registry",
     "changelog_url": "https://github.com/anthropics/claude-code/releases/tag/v2.1.153",
-    "notes": null
+    "notes": "Seed entry from the first poll. Already on stable before tracking began, so the real promotion date is unknown."
   },
   {
     "channel": "stable",

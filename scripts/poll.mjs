@@ -9,6 +9,7 @@ const PACKAGE = "@anthropic-ai/claude-code";
 const REGISTRY_URL = `https://registry.npmjs.org/${encodeURIComponent(PACKAGE).replace("%40", "@")}`;
 const STABLE_PATH = "data/stable.json";
 const LATEST_PATH = "data/latest.json";
+const RELEASES_PATH = "data/releases.json";
 const KEEPALIVE_PATH = "data/.keepalive";
 
 const DRY_RUN = argv.includes("--dry-run");
@@ -56,6 +57,18 @@ function computeChangeset(history, channel, currentVersion, publishedAt) {
   return { changed: true, entry };
 }
 
+// Every non-prerelease version with its npm publish time, oldest first.
+// The frontend uses this to count real releases (version numbers skip) and
+// to measure release cadence, since a daily poll of dist-tags.latest sees at
+// most one new version per day.
+function buildReleases(meta) {
+  const time = meta.time ?? {};
+  return Object.keys(meta.versions ?? {})
+    .filter((v) => !v.includes("-") && time[v])
+    .map((v) => ({ version: v, published_at: time[v] }))
+    .sort((a, b) => a.published_at.localeCompare(b.published_at));
+}
+
 function writeKeepalive() {
   writeFileSync(KEEPALIVE_PATH, new Date().toISOString() + "\n");
 }
@@ -97,6 +110,7 @@ async function main() {
     console.log(JSON.stringify({ dryRun: true, ...summary }, null, 2));
     if (stableDiff.entry) console.log("Would append to stable:", stableDiff.entry);
     if (latestDiff.entry) console.log("Would append to latest:", latestDiff.entry);
+    console.log("Would write releases:", buildReleases(meta).length, "versions");
     return;
   }
 
@@ -108,6 +122,9 @@ async function main() {
     latestHistory.push(latestDiff.entry);
     writeFileSync(LATEST_PATH, JSON.stringify(latestHistory, null, 2) + "\n");
   }
+
+  const releases = buildReleases(meta);
+  writeFileSync(RELEASES_PATH, JSON.stringify(releases, null, 1) + "\n");
 
   writeKeepalive();
 
