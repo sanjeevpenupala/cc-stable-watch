@@ -8,7 +8,7 @@ const REQUIRED_IDS = [
   "hero-version",
   "hero-bumped",
   "hero-typical-gap",
-  "lag-chart",
+  "history-summary",
   "history-tbody",
   "latest-version",
 ];

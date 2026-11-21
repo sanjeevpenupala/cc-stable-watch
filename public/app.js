@@ -10,17 +10,11 @@ const els = {
   historyTbody: document.getElementById("history-tbody"),
   latestVersion: document.getElementById("latest-version"),
   latestCadence: document.getElementById("latest-cadence"),
-  lagChart: document.getElementById("lag-chart"),
-  chartWrap: document.getElementById("chart-wrap"),
-  chartPlaceholder: document.getElementById("chart-placeholder"),
-  soakMedian: document.getElementById("soak-median"),
+  historySummary: document.getElementById("history-summary"),
   errorState: document.getElementById("error-state"),
   retryButton: document.getElementById("retry-button"),
   themeToggle: document.getElementById("theme-toggle"),
 };
-
-let chartInstance = null;
-let lastState = null;
 
 async function fetchJson(path) {
   const res = await fetch(path, { cache: "no-store" });
@@ -59,22 +53,47 @@ function isSeed(stable, i) {
   return i === 0 && stable[0].source !== "manual";
 }
 
-// Gaps between consecutive promotions. The gap that starts at the seed entry
-// is only a lower bound, so it is left out of the stats.
-function computeGapStats(stable) {
-  const start = isSeed(stable, 0) ? 2 : 1;
-  if (stable.length <= start) return null;
-  const gaps = [];
-  for (let i = start; i < stable.length; i++) {
-    gaps.push(daysBetween(stable[i - 1].first_observed_utc, stable[i].first_observed_utc));
-  }
-  const sorted = [...gaps].sort((a, b) => a - b);
+// Median and middle half (25th to 75th percentile), rounded to whole days
+// because we poll once a day.
+function summarize(nums) {
+  if (nums.length === 0) return null;
+  const sorted = [...nums].sort((a, b) => a - b);
   return {
     q1: Math.round(percentile(sorted, 0.25)),
     q3: Math.round(percentile(sorted, 0.75)),
     median: Math.round(percentile(sorted, 0.5)),
-    count: gaps.length,
+    count: nums.length,
   };
+}
+
+// "Stable for": gaps between consecutive promotions. The gap that starts at
+// the seed entry is only a lower bound, so it is left out of the stats.
+function computeGapStats(stable) {
+  const gaps = [];
+  for (let i = isSeed(stable, 0) ? 2 : 1; i < stable.length; i++) {
+    gaps.push(daysBetween(stable[i - 1].first_observed_utc, stable[i].first_observed_utc));
+  }
+  return summarize(gaps);
+}
+
+// "Waited": whole days from npm publish to our first sighting on stable.
+// Null for the seed entry (promotion date unknown) or a missing publish time.
+function waitDays(stable, i) {
+  const entry = stable[i];
+  if (isSeed(stable, i) || !entry.published_to_npm_at) return null;
+  return Math.max(0, Math.round(daysBetween(entry.published_to_npm_at, entry.first_observed_utc)));
+}
+
+function computeWaitStats(stable) {
+  const waits = stable.map((_, i) => waitDays(stable, i)).filter((w) => w !== null);
+  return summarize(waits);
+}
+
+// Fast-tracked: waited under half the median wait. Waits cluster tightly
+// (about 7 to 12 days) with hotfixes at 0 to 2, so half the median sits in
+// the empty stretch between them and moves if the usual wait ever changes.
+function isFastTracked(wait, waitStats) {
+  return wait !== null && waitStats !== null && wait < waitStats.median / 2;
 }
 
 // Parse "a.b.c" into [a, b, c] as integers. Returns null if not in that shape.
@@ -110,6 +129,12 @@ function utcDayStart(iso) {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 
+// Whole calendar UTC days from `iso` to today, so "N days ago" agrees with
+// the dates shown in the table.
+function calendarDaysSince(iso) {
+  return Math.max(0, Math.round((utcDayStart(new Date().toISOString()) - utcDayStart(iso)) / 86400000));
+}
+
 function plural(n, word) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
@@ -128,8 +153,7 @@ function renderHero(stable, latest, releases) {
   // first_observed_utc is our daily poll's first sighting, so the real
   // promotion happened at most about a day earlier. The npm publish time is
   // NOT a proxy: builds wait on npm for days before being promoted.
-  // Count calendar UTC days so this agrees with the date in the table.
-  const days = Math.max(0, Math.round((utcDayStart(new Date().toISOString()) - utcDayStart(current.first_observed_utc)) / 86400000));
+  const days = calendarDaysSince(current.first_observed_utc);
   const ago = days === 0 ? "today" : `${plural(days, "day")} ago`;
   els.heroBumped.textContent = isSeed(stable, stable.length - 1)
     ? `on stable since at least ${ago}`
@@ -139,7 +163,7 @@ function renderHero(stable, latest, releases) {
   if (!stats) {
     els.heroTypicalGap.textContent = "not enough history yet";
   } else {
-    els.heroTypicalGap.textContent = `typical gap: ${stats.q1}d–${stats.q3}d (median ${stats.median}d, n=${stats.count})`;
+    els.heroTypicalGap.innerHTML = `typical gap: ${range(stats, "d")} (median ${stats.median}d, n=${stats.count})`;
   }
 
   const currentLatest = latest[latest.length - 1];
@@ -189,28 +213,60 @@ function escapeAttr(s) {
   return escapeHtml(s);
 }
 
+// "1-5" kept on one line so it never wraps at the hyphen.
+function range(stats, unit = "") {
+  const text = stats.q1 === stats.q3 ? `${stats.q1}${unit}` : `${stats.q1}${unit}-${stats.q3}${unit}`;
+  return `<span class="nowrap">${text}</span>`;
+}
+
+function renderSummary(stable) {
+  const wait = computeWaitStats(stable);
+  const gap = computeGapStats(stable);
+  if (!wait || !gap) {
+    els.historySummary.textContent = "Typical wait and stable times appear once a few promotions are recorded.";
+    return;
+  }
+  els.historySummary.innerHTML =
+    `Builds wait a median <strong>${plural(wait.median, "day")}</strong> (usually ${range(wait)}) ` +
+    `on npm before promotion, then stay stable a median <strong>${plural(gap.median, "day")}</strong> ` +
+    `(usually ${range(gap)}).`;
+}
+
 function renderHistory(stable) {
   if (stable.length === 0) {
     els.historyTbody.innerHTML =
-      '<tr class="empty-row"><td colspan="4">No promotions recorded yet. Check back after the first poll.</td></tr>';
+      '<tr class="empty-row"><td colspan="6">No promotions recorded yet. Check back after the first poll.</td></tr>';
     return;
   }
+  const waitStats = computeWaitStats(stable);
   const rows = [];
   for (let i = stable.length - 1; i >= 0; i--) {
     const entry = stable[i];
     const next = stable[i + 1];
     const isCurrent = i === stable.length - 1;
     const seed = isSeed(stable, i);
-    const span = isCurrent ? null : lifespanDays(entry.first_observed_utc, next.first_observed_utc);
-    const lifespan = isCurrent ? "current" : seed ? `${span}+ d` : `${span} d`;
+
+    const published = entry.published_to_npm_at ? fmtDateUTC(entry.published_to_npm_at) : "unknown";
     const promoted = seed
       ? `on or before ${fmtDateUTC(entry.first_observed_utc)}`
       : fmtDateUTC(entry.first_observed_utc);
+
+    const wait = waitDays(stable, i);
+    let waited = wait === null ? '<span class="muted">unknown</span>' : `${wait} d`;
+    if (isFastTracked(wait, waitStats)) waited += ' <span class="tag">fast-tracked</span>';
+
+    const span = isCurrent
+      ? calendarDaysSince(entry.first_observed_utc)
+      : lifespanDays(entry.first_observed_utc, next.first_observed_utc);
+    const stableFor = isCurrent ? `${span} d so far` : seed ? `${span}+ d` : `${span} d`;
+
     rows.push(
       `<tr class="${isCurrent ? "current" : ""}"${seed ? ' title="Already on stable when tracking began"' : ""}>` +
         `<td>${escapeHtml(entry.version)}</td>` +
+        `<td>${published}</td>` +
         `<td>${promoted}</td>` +
-        `<td>${lifespan}</td>` +
+        `<td>${waited}</td>` +
+        `<td>${stableFor}</td>` +
         `<td><a href="${escapeAttr(safeUrl(entry.changelog_url))}" rel="noopener noreferrer" target="_blank">view</a></td>` +
         `</tr>`,
     );
@@ -239,111 +295,11 @@ function renderLatest(latest, releases) {
     `Anthropic published ${plural(recent, "build")} to npm in the last 30 days (about ${perWeek} per week).`;
 }
 
-// One bar per promotion: days between the version's npm publish and our
-// first sighting of it on stable ("soak time"). Whole days only, since we poll
-// daily. The seed entry is skipped because its promotion date is unknown.
-function buildSoakSeries(stable) {
-  const points = [];
-  stable.forEach((entry, i) => {
-    if (isSeed(stable, i) || !entry.published_to_npm_at) return;
-    points.push({
-      label: entry.version,
-      y: Math.max(0, Math.round(daysBetween(entry.published_to_npm_at, entry.first_observed_utc))),
-      published: fmtDateUTC(entry.published_to_npm_at),
-      observed: fmtDateUTC(entry.first_observed_utc),
-    });
-  });
-  return points;
-}
-
-function readCssVar(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
-
-function renderChart(stable, latest) {
-  if (typeof Chart === "undefined") {
-    console.warn("Chart.js not loaded");
-    return;
-  }
-  const points = buildSoakSeries(stable);
-  if (chartInstance) chartInstance.destroy();
-
-  // A single observation can't show change-over-time. Hide chart and
-  // explain instead — one dot at lag=0 looks broken to first-time visitors.
-  if (points.length < 2) {
-    els.chartWrap.hidden = true;
-    els.chartPlaceholder.hidden = false;
-    chartInstance = null;
-    return;
-  }
-  els.chartWrap.hidden = false;
-  els.chartPlaceholder.hidden = true;
-
-  const median = Math.round(percentile(points.map((p) => p.y).sort((a, b) => a - b), 0.5));
-  els.soakMedian.textContent = plural(median, "day");
-  // Builds promoted in under half the usual wait were fast-tracked (hotfixes).
-  const isFast = (p) => p.y < median / 2;
-
-  const accent = readCssVar("--color-accent") || "#d97757";
-  const muted = readCssVar("--color-fg-muted") || "#6b6962";
-  const line = readCssVar("--color-line") || "#e8e6dc";
-
-  chartInstance = new Chart(els.lagChart, {
-    type: "bar",
-    data: {
-      labels: points.map((p) => p.label),
-      datasets: [
-        {
-          label: "Days from npm publish to stable",
-          data: points.map((p) => p.y),
-          backgroundColor: points.map((p) => (isFast(p) ? accent : accent + "8c")),
-          borderRadius: 3,
-          // Same-day promotions round to 0; keep them visible.
-          minBarLength: 4,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: (items) => points[items[0].dataIndex].label,
-            label: (item) => {
-              const p = points[item.dataIndex];
-              const tag = isFast(p) ? " (fast-tracked)" : "";
-              // Short lines so the tooltip fits on phone screens.
-              return [`${plural(p.y, "day")}${tag}`, `published ${p.published}`, `stable ${p.observed}`];
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          type: "category",
-          grid: { display: false },
-          ticks: { color: muted, maxRotation: 60, autoSkip: true },
-        },
-        y: {
-          beginAtZero: true,
-          grid: { color: line },
-          ticks: { color: muted, precision: 0 },
-          title: { display: true, text: "days", color: muted },
-        },
-      },
-    },
-  });
-}
-
 function render(state) {
-  lastState = state;
   renderHero(state.stable, state.latest, state.releases);
+  renderSummary(state.stable);
   renderHistory(state.stable);
   renderLatest(state.latest, state.releases);
-  renderChart(state.stable, state.latest);
 }
 
 async function load() {
@@ -384,12 +340,6 @@ function setTheme(theme) {
   try {
     localStorage.setItem("ccsw-theme", theme);
   } catch (e) {}
-  if (chartInstance) {
-    chartInstance.destroy();
-    chartInstance = null;
-    if (lastState) renderChart(lastState.stable, lastState.latest);
-    else load();
-  }
 }
 
 els.themeToggle.addEventListener("click", () => {

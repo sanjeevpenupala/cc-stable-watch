@@ -123,32 +123,24 @@
         </div>
       </section>
 
-      <section class="chart-section" aria-labelledby="chart-heading">
-        <h2 id="chart-heading">How long builds wait before stable</h2>
-        <p class="chart-subtitle">
-          Days between a version's npm publish and when it showed up on
-          <code>stable</code>. Most wait about <span id="soak-median">a week</span>,
-          so <code>stable</code> is roughly the <code>latest</code> from that
-          long ago. Solid bars were fast-tracked (under half the usual wait).
-        </p>
-        <div class="chart-wrap" id="chart-wrap">
-          <canvas id="lag-chart" aria-label="Days from npm publish to stable promotion, per stable version"></canvas>
-        </div>
-        <div id="chart-placeholder" class="chart-placeholder" hidden>
-          Chart fills in as we observe <code>stable</code> promotions. Needs
-          at least two promotions to be meaningful.
-        </div>
-      </section>
-
       <section class="history-section" aria-labelledby="history-heading">
         <h2 id="history-heading">Stable promotions</h2>
+        <p class="section-summary" id="history-summary">Loading…</p>
+        <p class="section-note">
+          <strong>Waited:</strong> days from npm publish to promotion.
+          <strong>Stable for:</strong> days until the next version replaced it.
+          <strong>Fast-tracked:</strong> waited under half the usual time.
+          Dates are UTC and can be up to a day late, since we check once a day.
+        </p>
         <div class="table-wrap">
           <table id="history-table">
             <thead>
               <tr>
                 <th scope="col">Version</th>
+                <th scope="col">Published</th>
                 <th scope="col">Promoted</th>
-                <th scope="col">Lifespan</th>
+                <th scope="col">Waited</th>
+                <th scope="col">Stable for</th>
                 <th scope="col">Changelog</th>
               </tr>
             </thead>
@@ -187,7 +179,6 @@
       </p>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="app.js" defer></script>
   </body>
 </html>

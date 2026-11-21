@@ -164,49 +164,24 @@ h2 {
   letter-spacing: -0.005em;
 }
 
-.chart-section, .history-section, .latest-section { margin-bottom: 48px; }
+.history-section, .latest-section { margin-bottom: 48px; }
 
-.chart-subtitle {
-  margin: 0 0 16px;
-  color: var(--color-fg-muted);
-  font-size: 15px;
-}
-
-.chart-subtitle code {
-  font-family: var(--font-ui);
-  background: var(--color-line);
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.chart-wrap {
-  background: var(--color-bg-elev);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: var(--shadow-card);
-  height: clamp(220px, 36vw, 320px);
-}
-
-.chart-placeholder {
-  background: var(--color-bg-elev);
-  border: 1px dashed var(--color-line);
-  border-radius: var(--radius-md);
-  padding: 32px 20px;
-  color: var(--color-fg-muted);
-  font-size: 14px;
-  text-align: center;
+.section-summary {
+  margin: 8px 0 8px;
+  font-size: 17px;
   line-height: 1.5;
 }
 
-.chart-placeholder code {
-  font-family: var(--font-ui);
-  background: var(--color-line);
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 12px;
+.section-note {
+  margin: 0 0 16px;
+  color: var(--color-fg-muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
+
+.nowrap { white-space: nowrap; }
+
+.section-note strong { color: var(--color-fg); font-weight: 600; }
 
 .hero-meta-secondary {
   margin-top: 4px;
@@ -221,7 +196,7 @@ h2 {
 
 #history-table {
   width: 100%;
-  min-width: 380px;
+  min-width: 640px;
   border-collapse: collapse;
   font-family: var(--font-ui);
   font-size: 15px;
@@ -254,6 +229,21 @@ h2 {
 #history-table td a:hover { text-decoration: underline; }
 
 #history-table tr.current td { font-weight: 600; }
+#history-table th, #history-table td { white-space: nowrap; }
+#history-table .muted { color: var(--color-fg-muted); }
+
+.tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border: 1px solid var(--color-accent-text);
+  border-radius: 999px;
+  color: var(--color-accent-text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  vertical-align: 1px;
+}
 
 .latest-section p { font-family: var(--font-ui); font-size: 15px; color: var(--color-fg-muted); }
 .latest-section strong { color: var(--color-fg); font-weight: 600; }
@@ -301,6 +291,4 @@ html[data-theme="dark"] {
   --color-accent-fg: #141413;
 }
 
-html[data-theme="dark"] .chart-subtitle code {
-  background: var(--color-line);
-}
+
